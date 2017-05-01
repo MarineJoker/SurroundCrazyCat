@@ -1,10 +1,5 @@
 package com.czy.surroundcrazycat.View;
 
-import java.util.HashMap;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
-
 import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -23,6 +18,11 @@ import android.view.View;
 import android.view.View.OnTouchListener;
 
 import com.czy.surroundcrazycat.R;
+
+import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Vector;
 
 public class GameView extends SurfaceView implements OnTouchListener {
 
@@ -64,11 +64,33 @@ public class GameView extends SurfaceView implements OnTouchListener {
 
     private boolean canMove = true;
 
+    public int ans=0;
+
     private int[] images = {R.drawable.cat1, R.drawable.cat2, R.drawable.cat3,
             R.drawable.cat4, R.drawable.cat5, R.drawable.cat6, R.drawable.cat7,
             R.drawable.cat8, R.drawable.cat9, R.drawable.cat10,
             R.drawable.cat11, R.drawable.cat12, R.drawable.cat13,
             R.drawable.cat14, R.drawable.cat15, R.drawable.cat16};
+
+    public int dfs(Point a)//如果猫还能出去就返回1，否则就返回0
+    {
+        if(inEdge(a)||ans==1) {
+            ans=1;
+            return 1;
+        }
+        for(int i=1;i<7;i++) {
+            Point temp = getNeighbour(a, i);
+            if (temp.getStatus() == Point.STATUS.STATUS_OFF ) {
+                temp.setStatus(Point.STATUS.STATUS_ON);
+                dfs(temp);
+                temp.setStatus(Point.STATUS.STATUS_OFF);//复原之前的状态
+            }
+        }
+        if(ans==1)
+            return 1;
+        else
+        return 0;
+    }
 
     public GameView(Context context) {
         super(context);
@@ -167,7 +189,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
     Callback callback = new Callback() {
         public void surfaceCreated(SurfaceHolder holder) {
             redraw();
-            startTimer();
+            startTimer();//开启多线程刷图
         }
 
         public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -219,7 +241,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
     }
 
     // 判断神经猫是否处于边界
-    private boolean inEdge(Point dot) {
+    private boolean inEdge(Point dot) {//格子是从第0个开始算
         if (dot.getX() * dot.getY() == 0 || dot.getX() + 1 == COL
                 || dot.getY() + 1 == ROW) {
             return true;
@@ -234,17 +256,17 @@ public class GameView extends SurfaceView implements OnTouchListener {
         cat.setXY(dot.getX(), dot.getY());
     }
 
-    // 获取one在方向dir上的可移动距离
-    private int getDistance(Point one, int dir) {
+    // 获取one在方向dir上的可移动距离?(只是遍历单一方向有点蠢)
+    private int getDistance(Point one, int dir) {//dir是来的方向
         int distance = 0;
-        if (inEdge(one)) {
+        if (inEdge(one)) {//走了这步猫恰好在边界，所以返回一步的距离
             return 1;
         }
         Point ori = one;
         Point next;
-        while (true) {
-            next = getNeighbour(ori, dir);
-            if (next.getStatus() == Point.STATUS.STATUS_ON) {
+        while (true) {//其实这里可以加一个dfs来判断猫今后能走多少步,这里只是进行了单一方向的遍历
+            next = getNeighbour(ori, dir);//还照着这个方向走
+            if (next.getStatus() == Point.STATUS.STATUS_ON) {//如果照这个方向走撞墙就把路程带个负号
                 return distance * -1;
             }
             if (inEdge(next)) {
@@ -291,33 +313,34 @@ public class GameView extends SurfaceView implements OnTouchListener {
         return null;
     }
 
-    // cat的移动算法
+    // cat的移动算法,可以在基础上进行修改,这个算法有点WTF
     private void move() {
-        if (inEdge(cat)) {
+        if (inEdge(cat)) {//如果猫跑了
             failure();
             return;
         }
-        Vector<Point> available = new Vector<>();
+        ans=0;
+        Vector<Point> available = new Vector<>();//有可走的点
         Vector<Point> direct = new Vector<>();
-        HashMap<Point, Integer> hash = new HashMap<>();
-        for (int i = 1; i < 7; i++) {
+        HashMap<Point, Integer> hash = new HashMap<>();//存下点和方向
+        for (int i = 1; i < 7; i++) {//猫有6个方向可以走
             Point n = getNeighbour(cat, i);
-            if (n.getStatus() == Point.STATUS.STATUS_OFF) {
+            if (n.getStatus() == Point.STATUS.STATUS_OFF) {//当前通道没有堵住
                 available.add(n);
-                hash.put(n, i);
-                if (getDistance(n, i) > 0) {
-                    direct.add(n);
+                hash.put(n, i);//存下点和方向
+                if (getDistance(n, i) > 0) {//有路可走且那个方向没有被堵住
+                    direct.add(n);//候选路线
                 }
             }
         }
-        if (available.size() == 0) {
-            win();
+        if (available.size() == 0||this.dfs(cat)==0) {//这个判断也很傻，如果猫已经被围起来了还学要接着堵通道
+            win();//唯一赢得的方式就是把猫围死在一个格子里
             canMove = false;
         } else if (available.size() == 1) {
             moveTo(available.get(0));
         } else {
             Point best = null;
-            if (direct.size() != 0) {
+            if (direct.size() != 0) {//如果沿着那个方向走没有被堵住
                 int min = 20;
                 for (int i = 0; i < direct.size(); i++) {
                     if (inEdge(direct.get(i))) {
@@ -332,7 +355,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
                         }
                     }
                 }
-            } else {
+            } else {//被堵住了的话就选当前方向能走最远的路
                 int max = 1;
                 for (int i = 0; i < available.size(); i++) {
                     int k = getDistance(available.get(i),
@@ -387,32 +410,32 @@ public class GameView extends SurfaceView implements OnTouchListener {
 
         int x, y;
         if (event.getAction() == MotionEvent.ACTION_UP) {
-            if (event.getY() <= OFFSET) {
+            if (event.getY() <= OFFSET) {//判断是否在通道外
                 return true;
             }
-            y = (int) ((event.getY() - OFFSET) / WIDTH);
-            if (y % 2 == 0) {
+            y = (int) ((event.getY() - OFFSET) / WIDTH);//算出当前是第几行的格子
+            if (y % 2 == 0) {//如果是偶数行且触摸的点在视图的间隙里
                 if (event.getX() <= length
                         || event.getX() >= length + WIDTH * COL) {
                     return true;
                 }
-                x = (int) ((event.getX() - length) / WIDTH);
-            } else {
-                if (event.getX() <= (length + WIDTH / 2)
+                x = (int) ((event.getX() - length) / WIDTH);//算出当前是第几列的格子
+            } else {//如果是奇数行算出是第几列的
+                if (event.getX() <= (length + WIDTH / 2)//和上面判断同理
                         || event.getX() > (length + WIDTH / 2 + WIDTH * COL)) {
                     return true;
                 }
                 x = (int) ((event.getX() - WIDTH / 2 - length) / WIDTH);
             }
-            if (x + 1 > COL || y + 1 > ROW) {
+            if (x + 1 > COL || y + 1 > ROW) {//暂时不理解为什么当前触摸的是边界点也要弹出
                 return true;
-            } else if (inEdge(cat) || !canMove) {
+            } else if (inEdge(cat) || !canMove) {//猫不能继续走了重启游戏
                 initGame();
                 canMove = true;
                 return true;
-            } else if (getDot(x, y).getStatus() == Point.STATUS.STATUS_OFF) {
-                getDot(x, y).setStatus(Point.STATUS.STATUS_ON);
-                move();
+            } else if (getDot(x, y).getStatus() == Point.STATUS.STATUS_OFF) {//如果当前的点没走过
+                getDot(x, y).setStatus(Point.STATUS.STATUS_ON);//则去这个点
+                move();//移动猫
                 steps++;
             }
         }
