@@ -192,7 +192,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
             startTimer();//开启多线程刷图
         }
 
-        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {//该函数在Created后至少会调用一次，当前surface的格式发生变化就会调用，也就是说是用来还原格式的
             WIDTH = width / (COL + 1);
             OFFSET = height - WIDTH * ROW - 2 * WIDTH;
             length = WIDTH / 3;
@@ -212,7 +212,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
                 gifImage();
             }
         };
-        timer.schedule(timerttask, 50, 65);
+        timer.schedule(timerttask, 100, 120);
     }
 
     // 停止定时任务
@@ -427,7 +427,7 @@ public class GameView extends SurfaceView implements OnTouchListener {
                 }
                 x = (int) ((event.getX() - WIDTH / 2 - length) / WIDTH);
             }
-            if (x + 1 > COL || y + 1 > ROW) {//暂时不理解为什么当前触摸的是边界点也要弹出
+            if (x + 1 > COL || y + 1 > ROW) {//因为格子是从0开始算，所以要加1
                 return true;
             } else if (inEdge(cat) || !canMove) {//猫不能继续走了重启游戏
                 initGame();
